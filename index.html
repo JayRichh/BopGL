@@ -1,142 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Advanced Audio Visualizer with Dynamic Backgrounds and Record</title>
-  <style>
-body, html {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  background-color: #000;
-}
-
-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.overlay {
-  position: absolute;
-  bottom: 32px;
-  left: 32px;
-  color: rgba(255, 255, 255, 0.95);
-  background-color: rgba(0, 0, 0, 0.75);
-  padding: 16px 24px;
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-}
-
-.overlay:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
-}
-
-.track-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  margin-bottom: 4px;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.track-artist {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
-  letter-spacing: -0.01em;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.overlay {
-  animation: fadeIn 0.5s ease-out;
-}
-  </style>
+  <title>BopGL: Interactive WebGL Audio Visualizer</title>
+  <meta name="description" content="Experience music visually with BopGL, a WebGL-powered audio visualizer featuring dynamic backgrounds, spinning records, and customizable visual presets.">
+  <meta name="keywords" content="audio visualizer, WebGL, interactive music, beat synchronization, custom playlists, visual presets, spinning record, JavaScript, shader programming">
+  <meta property="og:title" content="BopGL: Interactive WebGL Audio Visualizer">
+  <meta property="og:description" content="Immerse yourself in a cosmic audio-visual experience with real-time music visualization and customizable effects.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="main.js" defer></script>
 </head>
-<body>
-  <canvas></canvas>
 
-  <div class="overlay" id="track-info">
-    <div class="track-title" id="track-title"></div>
-    <div class="track-artist" id="track-artist"></div>
+<body class="bg-black text-white">
+  <canvas class="fixed top-0 left-0 w-full h-full"></canvas>
+  <!-- Controls Sidebar -->
+  <div id="controls-sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 bg-opacity-75 p-4 hidden z-20 overflow-y-auto">
+    <h2 class="text-xl font-bold mb-4">Visualization Controls</h2>
+    <div id="controls-container" class="space-y-4">
+      <!-- Sliders and color pickers will be generated here -->
+    </div>
+    <button id="close-controls-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+      Close Controls
+    </button>
+    <button id="reset-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded">
+      Reset
+    </button>
+  </div>
+
+  <div class="fixed bottom-5 left-5 z-10" id="track-info">
+    <div class="text-2xl font-bold" id="track-title"></div>
+    <div class="text-xl" id="track-artist"></div>
+    <div class="text-lg" id="track-time"></div>
+  </div>
+
+  <div class="fixed top-5 right-5 flex flex-col space-y-2 controls-container">
+    <div class="flex space-x-2">
+      <button id="next-preset-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform transition duration-200 ease-in-out hover:scale-105 control-button">NEXT PRESET</button>
+      <button id="random-preset-button" class="bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform transition duration-200 ease-in-out hover:scale-105 control-button">RANDOM PRESET</button>
+    </div>
+    <div class="flex space-x-2">
+      <button id="listen-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded control-button">LISTEN</button>
+      <button id="create-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded control-button">CREATE</button>
+      <button id="play-pause-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded control-button hidden">PLAY/PAUSE</button>
+      <button id="open-controls-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded control-button">CONTROLS</button>
+    </div>
+  </div>
+  <!-- Create Modal -->
+  <div id="create-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-20">
+    <div class="bg-gray-800 text-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <h2 class="text-2xl font-bold mb-6">Create Your Playlist</h2>
+      <div id="track-list" class="space-y-4"></div>
+      <button id="add-track-button" class="mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300">
+        Add Track
+      </button>
+      <div class="mt-6 flex justify-end space-x-4">
+        <button id="cancel-button" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-300">
+          Cancel
+        </button>
+        <button id="save-playlist-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300">
+          Save Playlist
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tracklist Overlay -->
+  <div id="tracklist-overlay" class="fixed bottom-5 right-5 bg-gray-900 bg-opacity-75 p-4 rounded-lg hidden z-10 max-w-sm w-full">
+    <h3 class="text-xl font-bold mb-2">Tracklist</h3>
+    <div id="tracklist-container" class="space-y-1 max-h-60 overflow-y-auto"></div>
+    <div class="mt-2">Total Time: <span id="total-time">00:00</span></div>
   </div>
 
   <script id="vertex-shader" type="x-shader/x-vertex">
     precision highp float;
-
     attribute vec2 a_position;
-
     varying vec2 vUv;
-
     void main() {
-      // Pass UV coordinates to the fragment shader
       vUv = (a_position + 1.0) * 0.5;
-
       gl_Position = vec4(a_position, 0.0, 1.0);
     }
   </script>
-    
+
   <script id="fragment-shader" type="x-shader/x-fragment">
     precision highp float;
-    
+
     uniform float iTime;
     uniform vec2 iResolution;
     uniform vec2 iMouse;
-    uniform float uTimeScale;
     uniform vec3 uColor1;
     uniform vec3 uColor2;
-    uniform float uParameter1;
-    uniform float uParameter2;
-    uniform float uParameter3;
-    uniform float uParameter4;
-    uniform float uParameter5;
-    
+    uniform float uBackgroundTimeScale;
+    uniform float uRecordTimeScale;
+    uniform float uGlowStrength;
+
     varying vec2 vUv;
-    
-    const float PI = 3.14159265359;
-    
-    // Improved noise
+
+    // Noise functions for texturing
     vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
     vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-    vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
-    
+    vec3 permute(vec3 x) { return mod289(((x * 34.0) + 1.0) * x); }
+
     float snoise(vec2 v) {
-      const vec4 C = vec4(0.211324865405187, 0.366025403784439,
-                 -0.577350269189626, 0.024390243902439);
-      vec2 i  = floor(v + dot(v, C.yy));
-      vec2 x0 = v -   i + dot(i, C.xx);
-      vec2 i1;
-      i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-      vec4 x12 = x0.xyxy + C.xxzz;
-      x12.xy -= i1;
-      i = mod289(i);
-      vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0))
-             + i.x + vec3(0.0, i1.x, 1.0));
-      vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
-                dot(x12.zw,x12.zw)), 0.0);
-      m = m*m;
-      m = m*m;
-      vec3 x = 2.0 * fract(p * C.www) - 1.0;
-      vec3 h = abs(x) - 0.5;
-      vec3 ox = floor(x + 0.5);
-      vec3 a0 = x - ox;
-      m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
-      vec3 g;
-      g.x  = a0.x  * x0.x  + h.x  * x0.y;
-      g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-      return 130.0 * dot(m, g);
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+        vec2 i  = floor(v + dot(v, C.yy) );
+        vec2 x0 = v - i + dot(i, C.xx);
+        vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod289(i);
+        vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+        vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+        m = m * m;
+        m = m * m;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
+        vec3 g;
+        g.x  = a0.x  * x0.x  + h.x  * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
     }
-    
+
     // Fractal Brownian Motion
     float fbm(vec2 x) {
         float v = 0.0;
@@ -150,499 +135,104 @@ canvas {
         }
         return v;
     }
-    
-    // Complex dynamic background
-    vec3 createComplexBackground(vec2 uv, float time) {
+
+    // Create complex background
+    vec3 createBackground(vec2 uv, float time) {
         vec2 q = vec2(0.);
         q.x = fbm(uv + 0.00 * time);
         q.y = fbm(uv + vec2(1.0));
-    
+
         vec2 r = vec2(0.);
         r.x = fbm(uv + 1.0 * q + vec2(1.7, 9.2) + 0.15 * time);
         r.y = fbm(uv + 1.0 * q + vec2(8.3, 2.8) + 0.126 * time);
-    
+
         float f = fbm(uv + r);
-    
-        vec3 color = mix(uColor1,
-                        uColor2,
-                        clamp((f * f) * 4.0, 0.0, 1.0));
-    
-        color = mix(color,
-                    vec3(0.9, 0.9, 0.9),
-                    clamp(length(q), 0.0, 1.0));
-    
-        color = mix(color,
-                    vec3(0.1, 0.1, 0.1),
-                    clamp(length(r.x), 0.0, 1.0));
-    
+
+        vec3 color = mix(uColor1, uColor2, clamp((f * f) * 4.0, 0.0, 1.0));
+
         return color;
     }
-    
-    // Dynamic glow effect
+
+    // Add glow effect to background
     vec3 addGlow(vec3 color, vec2 uv, vec2 center, float time) {
         float dist = distance(uv, center);
         float glow = sin(dist * 10.0 - time * 2.0) * 0.5 + 0.5;
-        glow = pow(glow, 3.0) * 0.05;
+        glow = pow(glow, 3.0) * uGlowStrength;
         return color + vec3(glow);
     }
-    
-    // Function to create radiating record grooves
+
+    // Record grooves with rotation effect
     float createRecordGrooves(vec2 uv, vec2 center, float radius, float time) {
-      vec2 d = uv - center;
-      float dist = length(d);
-      float angle = atan(d.y, d.x);
-    
-      // Spinning effect
-      angle -= time * 0.5;
-    
-      // Create more detailed radiating grooves
-      float grooves = sin(dist * 500.0 - angle * 100.0) * 0.5 + 0.5;
-      grooves = smoothstep(0.45, 0.55, grooves);
-    
-      // Add some variation to the grooves
-      grooves += snoise(vec2(dist * 200.0, angle * 50.0 + time * 0.1)) * 0.1;
-    
-      // Create concentric circles
-      float circles = sin(dist * 200.0) * 0.5 + 0.5;
-      circles = smoothstep(0.45, 0.55, circles);
-    
-      // Combine grooves and circles
-      float pattern = mix(grooves, circles, 0.2);
-    
-      // Create edge highlight
-      float edge = smoothstep(radius - 0.01, radius, dist);
-    
-      return mix(pattern, edge, 0.2);
+        vec2 d = uv - center;
+        float dist = length(d);
+        float angle = atan(d.y, d.x);
+        angle -= time * 0.5;
+
+        float grooves = sin(dist * 500.0 - angle * 100.0) * 0.5 + 0.5;
+        grooves = smoothstep(0.45, 0.55, grooves);
+
+        float circles = sin(dist * 200.0) * 0.5 + 0.5;
+        circles = smoothstep(0.45, 0.55, circles);
+
+        return mix(grooves, circles, 0.2);
     }
-    
-    // Function to create old paper texture
-    float oldPaperTexture(vec2 uv) {
-      return snoise(uv * 500.0) * 0.1 + snoise(uv * 250.0) * 0.2 + snoise(uv * 125.0) * 0.3;
-    }
-    
-    // Function to create old record label
+
+    // Create old label in the center of the record
     float createOldLabel(vec2 uv, vec2 center, float size, float rotation, float time) {
-      // Rotate and scale the UV coordinates
-      vec2 rotatedUV = uv - center;
-      float s = sin(rotation + time * 0.5);
-      float c = cos(rotation + time * 0.5);
-      rotatedUV = vec2(rotatedUV.x * c - rotatedUV.y * s, rotatedUV.x * s + rotatedUV.y * c);
-      rotatedUV /= size;
-      rotatedUV += vec2(0.5);
-    
-      // Create a circular shape
-      float circle = 1.0 - smoothstep(0.45, 0.5, length(rotatedUV - vec2(0.5)));
-    
-      // Add old paper texture
-      float paper = oldPaperTexture(rotatedUV);
-      circle *= 0.7 + paper * 0.3;
-    
-      // Add some text-like patterns
-      float text = step(0.4, fract(rotatedUV.x * 10.0)) * step(0.4, fract(rotatedUV.y * 10.0));
-      circle = mix(circle, circle * text, 0.2);
-    
-      return circle;
+        vec2 rotatedUV = uv - center;
+        float s = sin(rotation + time * 0.5);
+        float c = cos(rotation + time * 0.5);
+        rotatedUV = vec2(rotatedUV.x * c - rotatedUV.y * s, rotatedUV.x * s + rotatedUV.y * c);
+        rotatedUV /= size;
+        rotatedUV += vec2(0.5);
+
+        float circle = 1.0 - smoothstep(0.45, 0.5, length(rotatedUV - vec2(0.5)));
+        float paper = snoise(rotatedUV * 500.0) * 0.1 + snoise(rotatedUV * 250.0) * 0.2;
+        circle *= 0.7 + paper * 0.3;
+
+        return circle;
     }
-    
+
     void main() {
-      vec2 uv = vUv;
-      vec2 center = vec2(0.5, 0.5);
-      float aspect = iResolution.x / iResolution.y;
-      uv.x = (uv.x - 0.5) * aspect + 0.5;
-      float time = iTime * uTimeScale;
-    
-      // Create complex dynamic background
-      vec3 bgColor = createComplexBackground(uv, time * 0.2);
-    
-      // Add dynamic glow
-      bgColor = addGlow(bgColor, uv, center, time);
-    
-      // Record parameters
-      float recordRadius = 0.3;
-      float holeRadius = 0.03;
-    
-      // Calculate distance from center
-      float dist = distance(uv, center);
-    
-      // Create the record shape
-      float record = smoothstep(recordRadius, recordRadius - 0.01, dist);
-      record -= smoothstep(holeRadius, holeRadius - 0.005, dist);
-    
-      // Create record details
-      float recordDetails = createRecordGrooves(uv, center, recordRadius, time);
-    
-      // Create record color with details
-      vec3 recordColor = mix(vec3(0.05), vec3(0.2), recordDetails);
-    
-      // Add a subtle reflection to the record
-      float reflection = pow(1.0 - dist, 2.0) * 0.2;
-      recordColor += reflection * vec3(0.2, 0.3, 0.4);
-    
-      // Create old label
-      float label = createOldLabel(uv, center, 0.15, 0.0, time);
-      vec3 labelColor = mix(vec3(0.9, 0.85, 0.7), vec3(0.8, 0.75, 0.6), oldPaperTexture(uv * 10.0));
-    
-      // Mix label with record
-      recordColor = mix(recordColor, labelColor, label * record);
-    
-      // Mix background and record
-      vec3 finalColor = mix(bgColor, recordColor, record);
-    
-      // Add a subtle vignette effect
-      float vignette = 1.0 - smoothstep(0.5, 1.5, dist);
-      finalColor *= mix(1.0, vignette, 0.3);
-    
-      // Output the final color
-      gl_FragColor = vec4(finalColor, 1.0);
+        vec2 uv = vUv;
+        vec2 center = vec2(0.5, 0.5);
+        float aspect = iResolution.x / iResolution.y;
+        uv.x = (uv.x - 0.5) * aspect + 0.5;
+
+        float backgroundTime = iTime * uBackgroundTimeScale;
+        float recordTime = iTime * uRecordTimeScale;
+
+        // Dynamic background
+        vec3 bgColor = createBackground(uv, backgroundTime);
+        bgColor = addGlow(bgColor, uv, center, backgroundTime);
+
+        // Record properties
+        float recordRadius = 0.3;
+        float holeRadius = 0.03;
+        float dist = distance(uv, center);
+
+        // Record with grooves
+        float record = smoothstep(recordRadius, recordRadius - 0.01, dist);
+        record -= smoothstep(holeRadius, holeRadius - 0.005, dist);
+        float recordDetails = createRecordGrooves(uv, center, recordRadius, recordTime);
+        vec3 recordColor = mix(vec3(0.0), vec3(0.1), recordDetails);
+
+        // Old label
+        float label = createOldLabel(uv, center, 0.15, 0.0, recordTime);
+        vec3 labelColor = mix(vec3(0.9, 0.85, 0.7), vec3(0.8, 0.75, 0.6), snoise(uv * 10.0));
+
+        // Mix label with record
+        recordColor = mix(recordColor, labelColor, label * record);
+
+        // Final color mix
+        vec3 finalColor = mix(bgColor, recordColor, record);
+
+        // Vignette effect
+        float vignette = 1.0 - smoothstep(0.5, 1.5, dist);
+        finalColor *= mix(1.0, vignette, 0.3);
+
+        gl_FragColor = vec4(finalColor, 1.0);
     }
-    </script>
-
-      <script>
-        (function () {
-          "use strict";
-        
-          let canvas, gl, shaderProgram;
-          let timeUniformLocation, resolutionUniformLocation, mouseUniformLocation;
-          let parameterLocations = {};
-          let color1Location, color2Location, timeScaleLocation;
-          let mousePosition = { x: 0, y: 0 };
-          let startTime, lastSwitchTime;
-          let currentVisualizationIndex = 0;
-          let isTransitioning = false;
-          let transitionStartTime = 0;
-          const transitionDuration = 5000; 
-        
-          const overlay = document.getElementById("track-info");
-          const trackTitleElement = document.getElementById("track-title");
-          const trackArtistElement = document.getElementById("track-artist");
-        
-          const tracks = [
-        {
-          title: "Cosmic Drift",
-          artist: "Nebula Sounds",
-          duration: 10000,
-          visualization: {
-            uParameter1: 10.0,
-            uParameter2: 0.5,
-            uParameter3: 0.3,
-            uParameter4: 6.0,
-            uParameter5: 0.5,
-            uColor1: [0.1, 0.2, 0.3],
-            uColor2: [0.5, 0.0, 0.5],
-            uTimeScale: 0.1,
-          },
-        },
-        {
-          title: "Ocean Depths",
-          artist: "Aquatic Resonance",
-          duration: 10000,
-          visualization: {
-            uParameter1: 15.0,
-            uParameter2: 0.3,
-            uParameter3: 0.4,
-            uParameter4: 8.0,
-            uParameter5: 0.6,
-            uColor1: [0.0, 0.1, 0.2],
-            uColor2: [0.0, 0.4, 0.6],
-            uTimeScale: 0.08,
-          },
-        },
-        {
-          title: "Fractal Dreams",
-          artist: "Digital Echoes",
-          duration: 10000,
-          visualization: {
-            uParameter1: 20.0,
-            uParameter2: 0.7,
-            uParameter3: 0.5,
-            uParameter4: 12.0,
-            uParameter5: 0.8,
-            uColor1: [0.1, 0.5, 0.1],
-            uColor2: [0.7, 0.0, 0.7],
-            uTimeScale: 0.15,
-          },
-        },
-        {
-          title: "Aurora Borealis",
-          artist: "Polar Lights",
-          duration: 10000,
-          visualization: {
-            uParameter1: 8.0,
-            uParameter2: 0.2,
-            uParameter3: 0.6,
-            uParameter4: 5.0,
-            uParameter5: 0.4,
-            uColor1: [0.0, 0.2, 0.3],
-            uColor2: [0.1, 0.5, 0.2],
-            uTimeScale: 0.05,
-          },
-        },
-        {
-          title: "Desert Mirages",
-          artist: "Oasis Dreams",
-          duration: 10000,
-          visualization: {
-            uParameter1: 12.0,
-            uParameter2: 0.4,
-            uParameter3: 0.2,
-            uParameter4: 7.0,
-            uParameter5: 0.3,
-            uColor1: [0.8, 0.5, 0.2],
-            uColor2: [0.2, 0.1, 0.0],
-            uTimeScale: 0.12,
-          },
-        },
-        {
-          title: "Quantum Fluctuations",
-          artist: "Particle Waves",
-          duration: 10000,
-          visualization: {
-            uParameter1: 25.0,
-            uParameter2: 0.8,
-            uParameter3: 0.7,
-            uParameter4: 15.0,
-            uParameter5: 0.9,
-            uColor1: [0.1, 0.1, 0.1],
-            uColor2: [0.9, 0.9, 0.9],
-            uTimeScale: 0.2,
-          },
-        },
-        {
-          title: "Forest Whispers",
-          artist: "Sylvan Echoes",
-          duration: 10000,
-          visualization: {
-            uParameter1: 6.0,
-            uParameter2: 0.1,
-            uParameter3: 0.3,
-            uParameter4: 4.0,
-            uParameter5: 0.2,
-            uColor1: [0.0, 0.3, 0.0],
-            uColor2: [0.2, 0.5, 0.1],
-            uTimeScale: 0.03,
-          },
-        },
-        {
-          title: "Neon City Nights",
-          artist: "Urban Pulse",
-          duration: 10000,
-          visualization: {
-            uParameter1: 18.0,
-            uParameter2: 0.6,
-            uParameter3: 0.5,
-            uParameter4: 10.0,
-            uParameter5: 0.7,
-            uColor1: [0.1, 0.0, 0.2],
-            uColor2: [0.8, 0.0, 0.8],
-            uTimeScale: 0.18,
-          },
-        },
-        {
-          title: "Volcanic Rhythms",
-          artist: "Magma Beats",
-          duration: 10000,
-          visualization: {
-            uParameter1: 14.0,
-            uParameter2: 0.5,
-            uParameter3: 0.6,
-            uParameter4: 9.0,
-            uParameter5: 0.6,
-            uColor1: [0.5, 0.1, 0.0],
-            uColor2: [0.8, 0.3, 0.0],
-            uTimeScale: 0.14,
-          },
-        },
-        {
-          title: "Glacial Movements",
-          artist: "Ice Flows",
-          duration: 10000,
-          visualization: {
-            uParameter1: 5.0,
-            uParameter2: 0.1,
-            uParameter3: 0.2,
-            uParameter4: 3.0,
-            uParameter5: 0.1,
-            uColor1: [0.8, 0.9, 1.0],
-            uColor2: [0.2, 0.3, 0.5],
-            uTimeScale: 0.02,
-          },
-        },
-      ];
-        
-          window.addEventListener("load", initializeWebGL, false);
-        
-          function initializeWebGL() {
-    canvas = document.querySelector("canvas");
-    gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-
-    if (!gl) {
-      alert("Your browser does not support WebGL");
-      return;
-    }
-
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    window.addEventListener("resize", onWindowResize, false);
-    canvas.addEventListener("mousemove", onMouseMove, false);
-
-    const vertexShaderSource = document.getElementById("vertex-shader").text;
-    const fragmentShaderSource = document.getElementById("fragment-shader").text;
-
-    const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-
-    shaderProgram = createShaderProgram(gl, vertexShader, fragmentShader);
-
-    timeUniformLocation = gl.getUniformLocation(shaderProgram, "iTime");
-    resolutionUniformLocation = gl.getUniformLocation(shaderProgram, "iResolution");
-    mouseUniformLocation = gl.getUniformLocation(shaderProgram, "iMouse");
-
-    parameterLocations.uParameter1 = gl.getUniformLocation(shaderProgram, "uParameter1");
-    parameterLocations.uParameter2 = gl.getUniformLocation(shaderProgram, "uParameter2");
-    parameterLocations.uParameter3 = gl.getUniformLocation(shaderProgram, "uParameter3");
-    parameterLocations.uParameter4 = gl.getUniformLocation(shaderProgram, "uParameter4");
-    parameterLocations.uParameter5 = gl.getUniformLocation(shaderProgram, "uParameter5");
-
-    color1Location = gl.getUniformLocation(shaderProgram, "uColor1");
-    color2Location = gl.getUniformLocation(shaderProgram, "uColor2");
-    timeScaleLocation = gl.getUniformLocation(shaderProgram, "uTimeScale");
-
-    startTime = Date.now();
-    lastSwitchTime = Date.now();
-
-    gl.useProgram(shaderProgram);
-
-    const vertices = new Float32Array([
-      -1, -1,
-      1, -1,
-      -1, 1,
-      1, 1,
-    ]);
-
-    const positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    const positionAttributeLocation = gl.getAttribLocation(shaderProgram, "a_position");
-    gl.enableVertexAttribArray(positionAttributeLocation);
-    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-
-    onWindowResize();
-
-    updateOverlay(tracks[currentVisualizationIndex]);
-
-    requestAnimationFrame(renderFrame);
-  }
-
-  function onWindowResize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    gl.viewport(0, 0, canvas.width, canvas.height);
-  }
-
-  function onMouseMove(event) {
-    const rect = canvas.getBoundingClientRect();
-    mousePosition.x = ((event.clientX - rect.left) / canvas.width) * 2 - 1;
-    mousePosition.y = ((event.clientY - rect.top) / canvas.height) * 2 - 1;
-  }
-
-  let previousConfig = tracks[0].visualization;
-
-  function renderFrame() {
-    const currentTime = Date.now();
-    const elapsedTime = (currentTime - startTime) / 1000;
-
-    const currentTrack = tracks[currentVisualizationIndex];
-    const trackStartTime = lastSwitchTime;
-    const trackElapsedTime = currentTime - trackStartTime;
-
-    if (!isTransitioning && trackElapsedTime > currentTrack.duration) {
-      isTransitioning = true;
-      transitionStartTime = currentTime;
-      previousConfig = currentTrack.visualization;
-      currentVisualizationIndex = (currentVisualizationIndex + 1) % tracks.length;
-      lastSwitchTime = currentTime;
-      updateOverlay(tracks[currentVisualizationIndex]);
-    }
-
-    let transitionProgress = 0.0;
-    if (isTransitioning) {
-      transitionProgress = (currentTime - transitionStartTime) / transitionDuration;
-      transitionProgress = Math.sin(transitionProgress * Math.PI * 0.5); // Smooth easing
-      if (transitionProgress >= 1.0) {
-        transitionProgress = 1.0;
-        isTransitioning = false;
-      }
-    }
-
-    const currentConfig = tracks[currentVisualizationIndex].visualization;
-
-    function interpolate(param) {
-      const startValue = previousConfig[param];
-      const endValue = currentConfig[param];
-      return startValue + (endValue - startValue) * transitionProgress;
-    }
-
-    gl.uniform1f(timeUniformLocation, (currentTime - lastSwitchTime) / 1000);
-    gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
-    gl.uniform2f(mouseUniformLocation, mousePosition.x, mousePosition.y);
-
-    Object.keys(parameterLocations).forEach((param) => {
-      gl.uniform1f(parameterLocations[param], interpolate(param));
-    });
-
-    const color1 = interpolateArray(previousConfig.uColor1, currentConfig.uColor1, transitionProgress);
-    const color2 = interpolateArray(previousConfig.uColor2, currentConfig.uColor2, transitionProgress);
-    gl.uniform3fv(color1Location, color1);
-    gl.uniform3fv(color2Location, color2);
-
-    const timeScale = interpolate('uTimeScale');
-    gl.uniform1f(timeScaleLocation, timeScale);
-
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-    requestAnimationFrame(renderFrame);
-  }
-
-  function interpolateArray(startArray, endArray, progress) {
-    return startArray.map((startValue, index) => {
-      const endValue = endArray[index];
-      return startValue + (endValue - startValue) * progress;
-    });
-  }
-
-  function updateOverlay(track) {
-    trackTitleElement.textContent = track.title;
-    trackArtistElement.textContent = track.artist;
-  }
-
-  function compileShader(glContext, shaderType, shaderSource) {
-    const shader = glContext.createShader(shaderType);
-    glContext.shaderSource(shader, shaderSource);
-    glContext.compileShader(shader);
-    if (!glContext.getShaderParameter(shader, glContext.COMPILE_STATUS)) {
-      console.error("Error compiling shader:", glContext.getShaderInfoLog(shader));
-      glContext.deleteShader(shader);
-      return null;
-    }
-    return shader;
-  }
-
-  function createShaderProgram(glContext, vertexShader, fragmentShader) {
-    const program = glContext.createProgram();
-    glContext.attachShader(program, vertexShader);
-    glContext.attachShader(program, fragmentShader);
-    glContext.linkProgram(program);
-    if (!glContext.getProgramParameter(program, glContext.LINK_STATUS)) {
-      console.error("Error linking shader program:", glContext.getProgramInfoLog(program));
-      return null;
-    }
-    return program;
-  }
-})();
 </script>
+
 </body>
-</html>
